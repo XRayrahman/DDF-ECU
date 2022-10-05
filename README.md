@@ -1,2 +1,2 @@
-# ddf-ECU
-Dual Diesel Fuel - ECU Repository ITS
+# DDF ECU
+Dual Diesel Fuel - ECU (Electrical Controller Unit) Repository ITS
