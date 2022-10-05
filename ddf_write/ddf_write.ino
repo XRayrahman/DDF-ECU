@@ -1,40 +1,50 @@
 #include <EEPROM.h>
-int incomingByte = 1;  // for incoming Serial2 data
-int pseudoEEPROM[9];
-int newEEPROM[9];
-int i = 0;
-boolean done = false;
+#define cells 9
+#define rows 3
+#define columns 3
 
-HardwareSerial Serial2(PA3, PA2);
+float pseudoEEPROM[cells], val[rows][columns];
+int i = 0;
+
+struct table_cell {
+  float throttle;
+  float rpm;
+  float injection;
+} table_cell;
+
+union table_in_ram {
+  byte raw[sizeof(struct table_cell) * cells];
+  struct table_cell parsed[cells];
+} table;
+
 void setup() {
-  Serial2.begin(9600);  // opens Serial2 port, sets data rate to 9600 bps
-  i = 0;
+  // put your setup code here, to run once:
+  Serial2.begin(9600);
   pinMode(LED_BUILTIN, OUTPUT);
+
+  //baca serial
+  while (Serial2.available() > 0) {
+    for (i = 0; i < sizeof(table_cell); i++) {
+      table.raw[i] = Serial2.parseFloat();
+    }
+  }
+
+  //update EEPROM
+  for (i = 0; i < sizeof(table_cell); i++) {
+    EEPROM.update(j, table.raw[j]);
+  }
 }
 
 void loop() {
-  // send data only when you receive data:
-  while (i < 9) {
-    if (Serial2.available() > 0) {
-      pseudoEEPROM[i] = Serial2.parseInt();
-      //EEPROM.write(i, pseudoEEPROM[i]);
-      Serial2.print("serial :");
-      Serial2.println(pseudoEEPROM[i]);
-      i++;
-    }
-  }
-  if (done == false) {
-    for (int r = 0; r < 9; r++) {
-      EEPROM.write(r, pseudoEEPROM[r]);
-      delay(100);
-    }
-    for (int x = 0; x < 9; x++) {
-      newEEPROM[x] = EEPROM.read(x);
-      Serial2.print("EEPROM :");
-      Serial2.println(newEEPROM[x]);
-      delay(100);
-    }
-    digitalWrite(LED_BUILTIN, HIGH);
-    done = true;
+  // put your main code here, to run repeatedly:
+  for (i = 0; i < cells; i++) {
+    Serial2.print("throttle = ");
+    Serial2.println(table.parsed[i].throttle);
+
+    Serial2.print("RPM = ");
+    Serial2.println(table.parsed[i].rpm);
+
+    Serial2.print("Injection = ")
+    Serial2.println(table.parsed[i].injection)
   }
 }
