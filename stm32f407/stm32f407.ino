@@ -3,7 +3,7 @@
 #include <math.h>
 
 #define pin PB5
-#define cells 3
+#define cells 50
 #define rows 1
 #define columns 3
 #define values 3
@@ -22,20 +22,16 @@ volatile unsigned long timeold = 0;
 volatile unsigned long tnew;
 boolean done = false;
 uint32_t duty_fs = 0;
+uint32_t out_duty_fs = 0;
 uint32_t duty_nx = 10;
-// int Table[3][3] = {
-//     {0, 0, 0},
-//     {0, 0, 0},
-//     {0, 0, 0}
-// };
 
 struct table_cell {
-  float throttle;
-  float rpm;
-  float injection;
+  uint16_t throttle;
+  uint16_t rpm;
+  uint16_t injection;
 } table_cell;
 
-union table_in_ram {  
+union table_in_ram {
   byte raw[cells * sizeof(struct table_cell)];
   // float raw[values * cells];
   struct table_cell parsed[cells];
@@ -49,9 +45,15 @@ void getEE();
 void interruptPin();
 
 void setup() {
-  Serial2.begin(9600);
+  Serial2.begin(115200);
   pinMode(PC1, INPUT_ANALOG);
+  analogReadResolution(10);
+  pinMode(PE_8, OUTPUT);
+  pinMode(PE_10, OUTPUT);
+  pinMode(PE_12, OUTPUT);
+  pinMode(PE_14, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(PE9), interruptPin, FALLING);
+
   rpm = 0;
   flag = 0;
   bacaEEPROM();
@@ -65,34 +67,47 @@ void loop() {
       flag = 1;
     }
   }
-
-  if (millis() - timeold == 1000) { /*Uptade every one second, this will be equal to reading frecuency (Hz).*/
-    detachInterrupt(0);             //Disable interrupt when calculating
+  // Serial2.println(millis());
+  if (millis() - timeold >= 1000) { /*Update every one second, this will be equal to reading frecuency (Hz).*/
+    // Serial2.println("line 70");
+    detachInterrupt(0);  //Disable interrupt when calculating
     rpmr = rpmcount * 60;
-    throttler = analogRead(PC1);
+    Serial2.println(rpmr);
+    // rpmr = 500;
+    // throttler = analogRead(PC1);
+    Serial2.println(throttler);
+    // throttler = 550;
+    throttler = random(0, 1000);
 
     // for (i = 0; i < totalValues; i++) {
     //   if (table.parsed[i].rpm == rpm && table.parsed[i].throttle == adcVal) {
     //     duty_nx = table.parsed[i].injection;
-    //   } else {
+    //   } else {term
     //     continue;
     //   }
     // }
 
-    duty_nx = dedaf_solve_injection_delay(&table_cell, cells, throttler, rpmr);
+    duty_nx = dedaf_solve_injection_delay(&table_`9cell, cells, throttler, rpmr);
+
     if (duty_nx != duty_fs) {
+
       duty_fs = duty_nx;
-      pwm_start(PB_5, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);  // used for Dutycycle: [0 .. 2047]
+      // out_duty_fs = (duty_fs * 50 / 1000) * 2047;
+      pwm_start(PE_8, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
+      pwm_start(PE_10, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
+      pwm_start(PE_12, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
+      pwm_start(PE_14, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);  // used for Dutycycle: [0 .. 2047]
+      // pwm_start(PE_12, 50, 200, RESOLUTION_11B_COMPARE_FORMAT);
     }
-    Serial2.println(duty_nx);
-    // Serial2.println("hasil");
-    // Serial2.println(rpm);
-    // Serial2.println(adcVal);
-    // Serial2.println(duty_fs);
+    Serial2.print("duty_fs = ");
+    Serial2.println(duty_fs);
+
+
     rpmcount = 0;        // Restart the RPM counter
-    timeold = millis();  // Uptade lasmillis
+    timeold = millis();  // Update lasmillis
     attachInterrupt(digitalPinToInterrupt(PE9), interruptPin, FALLING);
   }
+  // Serial2.println("line 97");
 }
 
 void interruptPin() {
@@ -132,7 +147,13 @@ void bacaEEPROM() {
 
     Serial2.print(" Injection = ");
     Serial2.println(injection);
-    delay(1000);
+    // delay();
+  }
+}
+
+void hapusEEPROM() {
+  for (i = 0; i < cells * sizeof(struct table_cell); i++) {
+    EEPROM.update(i, 0xFF);
   }
 }
 
@@ -151,10 +172,11 @@ void tulisEEPROM() {
   // }
 
   for (i = 0; i < cells * sizeof(struct table_cell); i++) {
-    while (!Serial2.available());
+    while (!Serial2.available())
+      ;
     b = Serial2.read();
     EEPROM.update(i, b);
-    Serial2.println(b, HEX);
+    // Serial2.println(b, HEX);
   }
 
   Serial2.println("EEPROM written!");
