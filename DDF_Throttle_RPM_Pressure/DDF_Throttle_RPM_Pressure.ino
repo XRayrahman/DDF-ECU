@@ -3,13 +3,11 @@
 #include <math.h>
 
 #define pin PB5
-#define cells 50
-#define rows 1
-#define columns 3
+#define cells 80
 #define values 3
 
 float raw, injection, throttle_read, rpm_read, throttle, pressure_read, pressure;
-float pseudoEEPROM[cells], val[rows][columns];
+float pseudoEEPROM[cells];
 float f = 0.00f, adcVal = 0;
 byte b;
 int i, j, flag;
@@ -72,15 +70,17 @@ void loop() {
     detachInterrupt(0);  //Disable interrupt when calculating
 
     pressure_read = analogRead(PA4);
-    pressure = calculatePressure(pressure_read);
+    // pressure = calculatePressure(pressure_read);
+    pressure = 2;
+    // Serial2.println(pressure);
 
-    rpm_read = rpmcount * 60;
+    // rpm_read = rpmcount * 60;
+    rpm_read = random(0, 36000);
     Serial2.println(rpm_read);
-    // rpm_read = 500;
+
     throttle_read = analogRead(PC1);
+    // throttle_read = analogRead(PC1) * 3.3 / 1023;
     Serial2.println(throttle_read);
-    // throttle_read = 550;
-    // throttle_read = random(0, 1000);
 
     // for (i = 0; i < totalValues; i++) {
     //   if (table.parsed[i].rpm == rpm && table.parsed[i].throttle == adcVal) {
@@ -92,23 +92,23 @@ void loop() {
 
     duty_nx = dedaf_solve_injection_delay(&table_cell, cells, throttle_read, rpm_read);
 
-    if (duty_nx != duty_fs && pressure > 1.2) {
-      duty_fs = duty_nx;
-      // out_duty_fs = (duty_fs * 50 / 1000) * 2047;
-      pwm_start(PE_8, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
-      pwm_start(PE_10, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
-      pwm_start(PE_12, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
-      pwm_start(PE_14, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);  // used for Dutycycle: [0 .. 2047]
-      // pwm_start(PE_12, 50, 200, RESOLUTION_11B_COMPARE_FORMAT);
-    } else {
-      duty_fs = 0;
+    // if (duty_nx != duty_fs && pressure > 1.2) {
+    //   duty_fs = duty_nx;
+    //   // out_duty_fs = (duty_fs * 50 / 1000) * 2047;
+    //   pwm_start(PE_8, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
+    //   pwm_start(PE_10, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
+    //   pwm_start(PE_12, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
+    //   pwm_start(PE_14, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);  // used for Dutycycle: [0 .. 2047]
+    // } else {
+      duty_fs = 200;
 
       pwm_start(PE_8, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
       pwm_start(PE_10, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
       pwm_start(PE_12, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
       pwm_start(PE_14, 50, duty_fs, RESOLUTION_11B_COMPARE_FORMAT);
-    }
+    // }
     Serial2.print("duty_fs = ");
+
     Serial2.println(duty_fs);
 
 
@@ -191,7 +191,7 @@ void tulisEEPROM() {
       ;
     b = Serial2.read();
     EEPROM.update(i, b);
-    // Serial2.println(b, HEX);
+    Serial2.println(b, HEX);
   }
 
   Serial2.println("EEPROM written!");
